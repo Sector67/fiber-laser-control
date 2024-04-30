@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Lens camera
+Comment=
+Exec=ffplay -i /dev/video2 -x 320 -y 240 -an -window_title "machine camera" -left 1400 -top 400 -video_size 320x240
+Icon=applets-screenshooter
+Path=/home/sector67
+Terminal=false
+StartupNotify=false
+Name[en_US.UTF-8]=Machine camera

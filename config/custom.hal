@@ -1,0 +1,69 @@
+# Include your custom HAL commands here
+# This file will not be overwritten when you run PNCconf again
+
+# Configure the "arc voltage" encoder to work properly
+setp    hm2_7i92.0.encoder.00.counter-mode 1
+setp    hm2_7i92.0.encoder.00.filter 0
+setp    hm2_7i92.0.encoder.00.index-invert 0
+setp    hm2_7i92.0.encoder.00.index-mask 0
+setp    hm2_7i92.0.encoder.00.index-mask-invert 0
+# The QtPlasmaC GUI does not allow voltage offsets higher than 5 digits, so scale this down here
+setp    hm2_7i92.0.encoder.00.scale 100
+
+# Configure a limit component for the capacitive sensor output since it is scaled
+loadrt limit1
+addf limit1.0 servo-thread
+net capacitive-sense-velocity limit1.0.in
+setp limit1.0.min 22900
+setp limit1.0.max 23900
+# hook up the limited signal to the plasmac arc voltage
+net plasmac:arc-voltage-in <= limit1.0.out
+
+# enable the spindle PWM to drive the laser power
+net plasmac:torch-on hm2_7i92.0.pwmgen.00.enable 
+setp hm2_7i92.0.pwmgen.00.scale 100
+net laser-power spindle.0.speed-out-abs hm2_7i92.0.pwmgen.00.value
+
+# enable the orange light to represent when the machine is enabled
+# and the "torch on" is enabled.
+loadrt and2
+addf and2.0 servo-thread
+net plasmac:torch-enable and2.0.in0
+net machine-is-on and2.0.in1
+net orange-light and2.0.out
+
+# for now a very naive gas-solenoid control
+loadrt timedelay
+addf timedelay.0 servo-thread
+net plasmac:program-is-running timedelay.0.in
+setp timedelay.0.on-delay 0.0
+setp timedelay.0.off-delay 1.0
+net gas-solenoid timedelay.0.out
+
+# enable the red light to represent when the laser is "firing"
+# currently defined as when a program is running or the torch is firing
+
+loadrt or2
+addf or2.0 servo-thread
+net plasmac:program-is-running or2.0.in0
+net plasmac:torch-on or2.0.in1
+net red-light or2.0.out
+
+# Make a fake Ohmic probe based on the capacitive sensor
+# Use the .velocity-rpm so the .velocity can be left unused for arc_ok
+loadrt comp count=1
+addf comp.0 servo-thread
+net fake-ohmic-probe-in hm2_7i92.0.encoder.00.velocity-rpm comp.0.in0
+setp comp.0.in1 930000.0
+net plasmac:ohmic-probe comp.0.out
+# ohmic output is comp.0.out
+
+# Fake "Arc OK" signal that is always true
+loadrt not count=1
+addf not.0 servo-thread
+setp not.0.in FALSE
+net plasmac:arc-ok-in not.0.out
+
+# ---OHMIC SENSE CONTACT DEBOUNCE---
+setp plasmac.ohmic-sense-off-delay  3
+setp plasmac.ohmic-sense-on-delay   3
