@@ -24,18 +24,35 @@ net plasmac:torch-on hm2_7i92.0.pwmgen.00.enable
 setp hm2_7i92.0.pwmgen.00.scale 100
 net laser-power spindle.0.speed-out-abs hm2_7i92.0.pwmgen.00.value
 
+# logic components for customization
+loadrt and2 count=2
+addf and2.0 servo-thread
+addf and2.1 servo-thread
+loadrt or2 count=2
+addf or2.0 servo-thread
+addf or2.1 servo-thread
+
 # enable the orange light to represent when the machine is enabled
 # and the "torch on" is enabled.
-loadrt and2
-addf and2.0 servo-thread
 net plasmac:torch-enable and2.0.in0
 net machine-is-on and2.0.in1
 net orange-light and2.0.out
 
+# some shared signals
+net halui-mode-is-auto halui.mode.is-auto
+
+net plasmac:program-is-running and2.1.in0
+net halui-mode-is-auto and2.1.in1
+net program-running and2.1.out
+
+net program-running or2.1.in0
+net plasmac:program-is-paused or2.1.in1
+net program-running-or-paused or2.1.out
+
 # for now a very naive gas-solenoid control
 loadrt timedelay
 addf timedelay.0 servo-thread
-net plasmac:program-is-running timedelay.0.in
+net program-running timedelay.0.in
 setp timedelay.0.on-delay 0.0
 setp timedelay.0.off-delay 1.0
 net gas-solenoid timedelay.0.out
@@ -43,10 +60,8 @@ net gas-solenoid timedelay.0.out
 # enable the red light to represent when the laser is "firing"
 # currently defined as when a program is running or the torch is firing
 
-loadrt or2
-addf or2.0 servo-thread
-net plasmac:program-is-running or2.0.in0
-net plasmac:torch-on or2.0.in1
+net program-running-or-paused or2.0.in1
+net plasmac:torch-on or2.0.in0
 net red-light or2.0.out
 
 # Make a fake Ohmic probe based on the capacitive sensor
